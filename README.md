@@ -2,6 +2,12 @@
 
 Ask questions about any YouTube video and get answers grounded in its transcript. Paste a link, ask a question, and skip watching the whole video.
 
+
+## 🎥 Demo
+
+[![Watch the demo](docs/demo-thumbnail.png)](https://drive.google.com/file/d/1mCORZakOgE68V7IUWRoio0EMuxIIXEEY/view?usp=sharing)
+
+
 ## What it does
 
 - Takes a YouTube URL and a question
