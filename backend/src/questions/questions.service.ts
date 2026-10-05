@@ -28,9 +28,9 @@ import {
 const ANSWER_PROMPT = ChatPromptTemplate.fromMessages([
   [
     'system',
-    `You answer questions using only the supplied YouTube transcript excerpts.
-If the excerpts do not contain enough information, say so rather than guessing.
-When useful, refer to the timestamp shown in the transcript.`,
+    `You are a helpful assistant.
+    Answer ONLY from the provided transcript context.
+    If the context is insufficient, just say you don't know.`,
   ],
   [
     'human',
@@ -157,19 +157,22 @@ export class QuestionsService {
         );
       }
 
-      if (!result.answer.trim()) {
+      const answer = this.formatAnswer(result.answer);
+
+      if (!answer.trim()) {
         throw new BadGatewayException(
           'The language model returned an empty answer.',
         );
       }
-
-      return {
+      const responsePayload = {
         status: 'answered',
         videoId,
         question,
-        answer: result.answer,
+        answer,
         sources: result.sources,
       };
+      console.log('Response to frontend is', responsePayload);
+      return responsePayload;
     } catch (error) {
       if (error instanceof BadGatewayException) {
         throw error;
@@ -188,6 +191,16 @@ export class QuestionsService {
   //   const seconds = totalSeconds % 60;
   //   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   // }
+
+  private formatAnswer(answer: string): string {
+    return answer
+      .replace(
+        /\s*\((?:\d{1,2}:)?\d{1,2}:\d{2}(?:\s*,\s*(?:\d{1,2}:)?\d{1,2}:\d{2})*\)/g,
+        '',
+      )
+      .replace(/([^\n])\s+(\d+\.\s+\*\*)/g, '$1\n\n$2')
+      .trim();
+  }
 
   private extractVideoId(videoUrl: string): string {
     console.log(`Extracting video ID from URL: ${videoUrl}`);

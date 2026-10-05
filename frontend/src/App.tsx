@@ -1,4 +1,6 @@
 import { useState, type FormEvent } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 type QuestionResponse = {
   status?: string;
@@ -126,9 +128,19 @@ function App() {
             <button
               type="submit"
               disabled={isSubmitting || !videoUrl.trim() || !question.trim()}
+              aria-live="polite"
             >
-              {isSubmitting ? 'Finding an answer...' : 'Ask about video'}
-              {!isSubmitting && <span aria-hidden="true">↗</span>}
+              {isSubmitting ? (
+                <>
+                  <span className="loading-spinner" aria-hidden="true" />
+                  Finding an answer...
+                </>
+              ) : (
+                <>
+                  Ask about video
+                  <span aria-hidden="true">↗</span>
+                </>
+              )}
             </button>
           </div>
         </form>
@@ -156,7 +168,11 @@ function App() {
             <p className="result-question">
               <strong>Your question:</strong> {transcript.question}
             </p>
-            <p className="answer-text">{transcript.answer}</p>
+            <div className="answer-text">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {transcript.answer}
+              </ReactMarkdown>
+            </div>
             {!!transcript.sources?.length && (
               <details className="sources">
                 <summary>Transcript passages used ({transcript.sources.length})</summary>

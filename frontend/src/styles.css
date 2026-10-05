@@ -245,6 +245,27 @@ h1 span {
   font-size: 17px;
 }
 
+.form-footer button .loading-spinner {
+  width: 15px;
+  height: 15px;
+  border: 2px solid rgb(255 255 255 / 35%);
+  border-top-color: var(--green);
+  border-radius: 50%;
+  animation: spinner-rotation 750ms linear infinite;
+}
+
+@keyframes spinner-rotation {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .form-footer button .loading-spinner {
+    animation-duration: 1.5s;
+  }
+}
+
 .feedback {
   margin: 16px 0 0;
   text-align: left;
@@ -309,6 +330,68 @@ h1 span {
   font-size: 15px;
   line-height: 1.8;
   overflow-wrap: anywhere;
+}
+
+.answer-text > :first-child {
+  margin-top: 0;
+}
+
+.answer-text > :last-child {
+  margin-bottom: 0;
+}
+
+.answer-text p {
+  margin: 0 0 14px;
+}
+
+.answer-text ol,
+.answer-text ul {
+  display: grid;
+  gap: 12px;
+  margin: 12px 0 18px;
+  padding-left: 28px;
+}
+
+.answer-text li {
+  padding-left: 5px;
+}
+
+.answer-text li::marker {
+  color: #70865d;
+  font-weight: 700;
+}
+
+.answer-text strong {
+  color: #23352a;
+  font-weight: 700;
+}
+
+.answer-text h1,
+.answer-text h2,
+.answer-text h3,
+.answer-text h4 {
+  margin: 20px 0 10px;
+  color: #23352a;
+  font-family: 'Manrope', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  line-height: 1.4;
+  text-align: left;
+}
+
+.answer-text a {
+  color: #506a40;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.answer-text code {
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: #e9f0e2;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.9em;
 }
 
 .sources {
