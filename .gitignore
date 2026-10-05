@@ -7,4 +7,5 @@ backend/*.tsbuildinfo
 .env.*
 !.env.example
 backend/.env.example
+backend/.env
 npm-debug.log*

@@ -6,6 +6,12 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
+import { StringOutputParser } from '@langchain/core/output_parsers';
+import {
+  RunnableLambda,
+  RunnableParallel,
+  RunnablePassthrough,
+} from '@langchain/core/runnables';
 import { MemoryVectorStore } from '@langchain/classic/vectorstores/memory';
 import {
   ChatGoogleGenerativeAI,
@@ -15,6 +21,7 @@ import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import {
   fetchTranscript,
   YoutubeTranscriptTooManyRequestError,
+  YoutubeTranscriptNotAvailableLanguageError,
   type TranscriptResponse,
 } from 'youtube-transcript';
 
@@ -55,22 +62,35 @@ export class QuestionsService {
       );
     }
 
-    let transcript: TranscriptResponse[];
-    try {
-      transcript = await fetchTranscript(videoId);
-      console.log(`Fetched transcript for YouTube video ${videoId}:`, transcript);
-    } catch (error) {
-      console.error(`Transcript fetch failed for YouTube video ${videoId}:`, error);
+    // let transcript: TranscriptResponse[];
+    // try {
+    //   transcript = await fetchTranscript(videoId,{ lang: 'en' });
+    //   console.log(`Fetched transcript for YouTube video ${videoId}:`, transcript);
+    // } catch (error) {
+    //   console.error(`Transcript fetch failed for YouTube video ${videoId}:`, error);
 
-      if (error instanceof YoutubeTranscriptTooManyRequestError) {
-        throw new ServiceUnavailableException(
-          'YouTube is temporarily rate-limiting transcript requests. Please try again later.',
-        );
+    //   if (error instanceof YoutubeTranscriptTooManyRequestError) {
+    //     throw new ServiceUnavailableException(
+    //       'YouTube is temporarily rate-limiting transcript requests. Please try again later.',
+    //     );
+    //   }
+
+    //   throw new BadGatewayException(
+    //     'Could not fetch this video transcript. Check that the video is available and has captions enabled.',
+    //   );
+    // }
+    const langs = ['en', 'en-US', 'en-GB'];
+    let transcript: TranscriptResponse[] | undefined;
+    for (const lang of langs) {
+      try {
+        transcript = await fetchTranscript(videoId, { lang });
+        break;
+      } catch (e) {
+        if (!(e instanceof YoutubeTranscriptNotAvailableLanguageError)) throw e;
       }
-
-      throw new BadGatewayException(
-        'Could not fetch this video transcript. Check that the video is available and has captions enabled.',
-      );
+    }
+    if (!transcript) {
+      throw new BadRequestException('This video has no English captions available.');
     }
 
     const transcriptText = transcript
@@ -105,18 +125,17 @@ export class QuestionsService {
         documents,
         embeddings,
       );
-      const relevantDocuments = await vectorStore.similaritySearch(question, 5);
+      const retrievalChain = RunnableParallel.from({
+        question: new RunnablePassthrough<string>(),
+        documents: vectorStore.asRetriever({ k: 5 }),
+      }).pipe(
+        RunnableLambda.from(({ question, documents }) => ({
+          question,
+          context: documents.map((document) => document.pageContent).join('\n\n'),
+          sources: documents.map((document) => document.pageContent),
+        })),
+      );
 
-      if (relevantDocuments.length === 0) {
-        throw new BadGatewayException(
-          'Could not find relevant transcript excerpts for this question.',
-        );
-      }
-
-      const context = relevantDocuments
-        .map((document) => document.pageContent)
-        .join('\n\n');
-      const prompt = await ANSWER_PROMPT.invoke({ question, context });
       const chatModel = new ChatGoogleGenerativeAI({
         apiKey,
         model:
@@ -124,10 +143,21 @@ export class QuestionsService {
           'gemini-2.5-flash',
         temperature: 0,
       });
-      const response = await chatModel.invoke(prompt);
-      const answer = this.getTextContent(response.content);
+      const answerChain = ANSWER_PROMPT.pipe(chatModel).pipe(
+        new StringOutputParser(),
+      );
+      const questionAnswerChain = retrievalChain.pipe(
+        RunnablePassthrough.assign({ answer: answerChain }),
+      );
+      const result = await questionAnswerChain.invoke(question);
 
-      if (!answer.trim()) {
+      if (result.sources.length === 0) {
+        throw new BadGatewayException(
+          'Could not find relevant transcript excerpts for this question.',
+        );
+      }
+
+      if (!result.answer.trim()) {
         throw new BadGatewayException(
           'The language model returned an empty answer.',
         );
@@ -137,8 +167,8 @@ export class QuestionsService {
         status: 'answered',
         videoId,
         question,
-        answer,
-        sources: relevantDocuments.map((document) => document.pageContent),
+        answer: result.answer,
+        sources: result.sources,
       };
     } catch (error) {
       if (error instanceof BadGatewayException) {
@@ -158,32 +188,6 @@ export class QuestionsService {
   //   const seconds = totalSeconds % 60;
   //   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   // }
-
-  private getTextContent(content: unknown): string {
-    if (typeof content === 'string') {
-      return content;
-    }
-
-    if (Array.isArray(content)) {
-      return content
-        .map((part) => {
-          if (
-            typeof part === 'object' &&
-            part !== null &&
-            'text' in part &&
-            typeof part.text === 'string'
-          ) {
-            return part.text;
-          }
-          return '';
-        })
-        .join('');
-    }
-
-    throw new BadGatewayException(
-      'The language model returned an unsupported response format.',
-    );
-  }
 
   private extractVideoId(videoUrl: string): string {
     console.log(`Extracting video ID from URL: ${videoUrl}`);
