@@ -5,6 +5,7 @@ Ask questions about any YouTube video and get answers grounded in its transcript
 
 ## 🎥 Demo
 <img width="1470" height="956" alt="Screenshot 2026-10-05 at 5 04 40 PM" src="https://github.com/user-attachments/assets/91ee5b96-1d6d-462c-bc78-72f69d33ae8b" />
+
 [![Watch the demo](docs/demo-thumbnail.png)](https://drive.google.com/file/d/1mCORZakOgE68V7IUWRoio0EMuxIIXEEY/view?usp=sharing)
 
 
